@@ -1,29 +1,20 @@
-# README #
+# Drivers_sonar_tritech #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+This project is a ROS 2 wrapper built on top of [drivers_sonar_tritec](https://github.com/rock-drivers/drivers-sonar_tritech/tree/master)
 
-### What is this repository for? ###
+```
+ros2 launch drivers_sonar_tritech micron_sonar_node.launch.py
+```
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+If you want to visualize the result in RViz, in a separate terminal, run:
 
-### How do I get set up? ###
+```
+ros2 launch drivers_sonar_tritech rviz_test_micron_sonar_node.launch.py
+```
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
 
-### Contribution guidelines ###
+In `config/micron_sonar_node_params.yaml` you can set some of your parameters.
 
-* Writing tests
-* Code review
-* Other guidelines
+If you want to route, run `export_port.sh` on the device that has the Sonar attached (such as the ROV) and `import_port.sh` on the machine that will run the code (such as your laptop).
 
-### Who do I talk to? ###
-
-* Repo owner or admin
-* Other community or team contact
+You may need to `chmod 666 /dev/ttyUSB0`.
