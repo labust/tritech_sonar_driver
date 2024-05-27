@@ -1,0 +1,13 @@
+micron_sonar_node:
+  ros__parameters:
+    debug: false
+    baudrate: 115200
+    udpPort: 4000
+    udpServer: ""
+    port: "/dev/ttyUSB0"
+    max_distance: 30.0
+    min_distance: 0.0001
+    frequency_out: 15.0
+    gain: 0.99
+    # speed_of_propagation: 1482.0 # in water
+    speed_of_propagation: 343.0 # in air

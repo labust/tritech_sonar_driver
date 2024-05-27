@@ -1,0 +1,6 @@
+build/
+*.sw?
+
+
+src/backup/
+.vscode/

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>drivers_sonar_tritech</name>
+  <version>0.1.0</version>
+  <description>The drivers_sonar_tritech package</description>
+  <maintainer email="carlo.cernicchiaro@cmmi.blue">Carlo Cernicchiaro</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <build_depend>rclcpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>Eigen3</build_depend>
+
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>Eigen3</exec_depend>
+
+  <!-- Add other dependencies here -->
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

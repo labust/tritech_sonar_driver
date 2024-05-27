@@ -1,0 +1,18 @@
+This project is a ROS 2 wrapper built on top of [drivers_sonar_tritec](https://github.com/rock-drivers/drivers-sonar_tritech/tree/master)
+
+```
+ros2 launch drivers_sonar_tritech micron_sonar_node.launch.py
+```
+
+If you want to visualize the result in RViz, in a separate terminal, run:
+
+```
+ros2 launch drivers_sonar_tritech rviz_test_micron_sonar_node.launch.py
+```
+
+
+In `config/micron_sonar_node_params.yaml` you can set some of your parameters.
+
+If you want to route, run `export_port.sh` on the device that has the Sonar attached (such as the ROV) and `import_port.sh` on the machine that will run the code (such as your laptop).
+
+You may need to `chmod 666 /dev/ttyUSB0`.
