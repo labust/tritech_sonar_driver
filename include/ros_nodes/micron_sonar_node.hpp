@@ -17,6 +17,7 @@ class SonarNode : public rclcpp::Node {
    void timer_callback();
    void publish_point_cloud();
    void publish_sonar_heading();
+   void declare_parameters();
 
    bool debug_;
    double max_distance_;
@@ -40,6 +41,20 @@ class SonarNode : public rclcpp::Node {
    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr
        pose_publisher_;
    sea_net::MicronConfig config_;
+
+   double left_limit_;
+
+   double right_limit_;
+
+   double resolution_;
+
+   double angular_resolution_;
+
+   bool low_resolution_;
+
+   bool continous_;
+
+   bool invert_;
 };
 
 #endif  // MICRON_SONAR_NODE_HPP

@@ -3,6 +3,36 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 SonarNode::SonarNode() : Node("sonar_node") {
+
+   declare_parameters();
+
+   micron_driver_ = std::make_shared<sea_net::Micron>(debug_);
+   udp_driver_ = std::make_shared<UDPDriver>(debug_);
+
+   if (!udpServer_.empty()) {
+      if (!udp_driver_->init(std::string(udpServer_), udpPort_)) {
+         RCLCPP_ERROR(this->get_logger(), "Could not open UDP server");
+      }
+   }
+
+   micron_driver_->openSerial(port_, baudrate_);
+   base::samples::RigidBodyState rbs;  // FIXME: why is it here?
+   micron_driver_->configure(config_, 1000);
+   micron_driver_->requestData();
+   int period_ms = static_cast<int>(1000.0 / frequency_out_);
+
+   point_cloud_publisher_ =
+       this->create_publisher<sensor_msgs::msg::PointCloud>(
+           "micron_sonar/point_cloud", 10);
+   pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
+       "micron_sonar/heading", 10);
+
+   timer_ =
+       this->create_wall_timer(std::chrono::milliseconds(period_ms),
+                               std::bind(&SonarNode::timer_callback, this));
+}
+
+void SonarNode::declare_parameters() {
    this->declare_parameter<bool>("debug", false);
    this->get_parameter("debug", debug_);
 
@@ -33,35 +63,39 @@ SonarNode::SonarNode() : Node("sonar_node") {
    this->declare_parameter<double>("speed_of_propagation", 1482.0);
    this->get_parameter("speed_of_propagation", speed_of_propagation_);
 
-   micron_driver_ = std::make_shared<sea_net::Micron>(debug_);
-   udp_driver_ = std::make_shared<UDPDriver>(debug_);
+   this->declare_parameter<double>("left_limit", M_PI);
+   this->get_parameter("left_limit", left_limit_);
+
+   this->declare_parameter<double>("right_limit", -M_PI);
+   this->get_parameter("right_limit", right_limit_);
+
+   this->declare_parameter<double>("angular_resolution", 5.0);
+   this->get_parameter("angular_resolution", angular_resolution_);
+
+   this->declare_parameter<double>("resolution", 0.1);
+   this->get_parameter("resolution", resolution_);
+
+   this->declare_parameter<bool>("low_resolution", false);
+   this->get_parameter("low_resolution", low_resolution_);
+
+   this->declare_parameter<bool>("continous", true);
+   this->get_parameter("continous", continous_);
+
+   this->declare_parameter<bool>("invert", false);
+   this->get_parameter("invert", invert_);
 
    config_.max_distance = max_distance_;
    config_.min_distance = min_distance_;
    config_.gain = gain_;
    config_.speed_of_sound = speed_of_propagation_;
-
-   if (!udpServer_.empty()) {
-      if (!udp_driver_->init(std::string(udpServer_), udpPort_)) {
-         RCLCPP_ERROR(this->get_logger(), "Could not open UDP server");
-      }
-   }
-
-   micron_driver_->openSerial(port_, baudrate_);
-   base::samples::RigidBodyState rbs;  // FIXME: why is it here?
-   micron_driver_->configure(config_, 1000);
-   micron_driver_->requestData();
-   int period_ms = static_cast<int>(1000.0 / frequency_out_);
-
-   point_cloud_publisher_ =
-       this->create_publisher<sensor_msgs::msg::PointCloud>(
-           "micron_sonar/point_cloud", 10);
-   pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
-       "micron_sonar/heading", 10);
-
-   timer_ =
-       this->create_wall_timer(std::chrono::milliseconds(period_ms),
-                               std::bind(&SonarNode::timer_callback, this));
+   config_.left_limit = base::Angle::fromRad(left_limit_);
+   config_.right_limit = base::Angle::fromRad(right_limit_);
+   config_.angular_resolution =
+       base::Angle::fromRad(angular_resolution_ / 180.0 * M_PI);
+   config_.resolution = resolution_;
+   config_.low_resolution = low_resolution_;
+   config_.continous = continous_;
+   config_.invert = invert_;
 }
 
 void SonarNode::timer_callback() {

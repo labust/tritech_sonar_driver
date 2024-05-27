@@ -17,7 +17,7 @@ def generate_launch_description():
         executable="static_transform_publisher",
         name="map_transform",
         output="screen",
-        arguments="--x -1 --y 0 --z 0 --roll 0 --pitch 0 --yaw 0 --frame-id map --child-frame-id sonar_frame".split(
+        arguments="--x 0 --y 0 --z 0 --roll 0 --pitch 0 --yaw 0 --frame-id map --child-frame-id sonar_frame".split(
             " "
         ),
     )
@@ -26,7 +26,7 @@ def generate_launch_description():
     rviz2_node = Node(
         package="rviz2",
         executable="rviz2",
-        name="rviz2_smart_float_one",
+        name="rviz2_tritech_conf",
         output="screen",
         arguments=[["-d"], [config_rviz2]],
     )

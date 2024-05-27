@@ -163,8 +163,8 @@ void Micron::configure(const MicronConfig &config, uint32_t timeout) {
    head_config.head_type = IMAGINGSONAR;
    head_config.left_limit = left_limit;
    head_config.right_limit = right_limit;
-   head_config.ad_span = 81;
-   head_config.ad_low = 8;
+   head_config.ad_span = 25;  // 81
+   head_config.ad_low = 8;    // 8
    head_config.initial_gain_ch1 = initial_gain;
    head_config.initial_gain_ch2 = initial_gain;
    head_config.motor_step_delay_time = 25;
