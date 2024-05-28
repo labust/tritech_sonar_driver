@@ -55,6 +55,10 @@ class SonarNode : public rclcpp::Node {
    bool continous_;
 
    bool invert_;
+
+   bool stare_left_limit_;
+
+   int timeout_receive_data_;  // ms
 };
 
 #endif  // MICRON_SONAR_NODE_HPP

@@ -10,9 +10,10 @@ micron_sonar_node:
     frequency_out: 15.0
     gain: 0.45
     speed_of_propagation: 1500.0 #1482.0 # in water
-    angular_resolution: 3.0
-    left_limit: 135.0 # no difference when I set them...
-    right_limit: 180.0 # no difference when I set them...
+    angular_resolution: 5.0
+    stare_left_limit: false # keeps staring at the angle declared on left limit
+    left_limit: 0.0
+    # right_limit: 0.0 # no difference when I set them...
     # speed_of_propagation: 343.0 # in air
     # angular_resolution: 1.0
     # low_resolution: true

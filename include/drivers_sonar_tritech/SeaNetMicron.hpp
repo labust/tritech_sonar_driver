@@ -13,7 +13,8 @@ class Micron : public SeaNet {
   public:
    Micron(bool debug = false);
    ~Micron();
-   void configure(const MicronConfig &config, uint32_t timeout);
+   void configure(const MicronConfig &config, uint32_t timeout,
+                  bool stare_llm = false);
    void decodeSonar(base::samples::Sonar &beam);
    void decodeEchoSounder(base::samples::RigidBodyState &state);
 

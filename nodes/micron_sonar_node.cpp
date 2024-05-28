@@ -17,7 +17,7 @@ SonarNode::SonarNode() : Node("sonar_node") {
 
    micron_driver_->openSerial(port_, baudrate_);
    base::samples::RigidBodyState rbs;  // FIXME: why is it here?
-   micron_driver_->configure(config_, 1000);
+   micron_driver_->configure(config_, 1000, stare_left_limit_);
    micron_driver_->requestData();
    int period_ms = static_cast<int>(1000.0 / frequency_out_);
 
@@ -84,6 +84,15 @@ void SonarNode::declare_parameters() {
    this->declare_parameter<bool>("invert", false);
    this->get_parameter("invert", invert_);
 
+   this->declare_parameter<bool>("stare_left_limit", false);
+   this->get_parameter("stare_left_limit", stare_left_limit_);
+
+   if (stare_left_limit_) {
+      timeout_receive_data_ = 10000;  // probably it can be lowered
+      left_limit_ = -left_limit_;
+   } else {
+      timeout_receive_data_ = 1000;
+   }
    config_.max_distance = max_distance_;
    config_.min_distance = min_distance_;
    config_.gain = gain_;
@@ -98,7 +107,7 @@ void SonarNode::declare_parameters() {
 }
 
 void SonarNode::timer_callback() {
-   micron_driver_->receiveData(1000);
+   micron_driver_->receiveData(timeout_receive_data_);
    micron_driver_->requestData();
    base::samples::Sonar sonar;
    micron_driver_->decodeSonar(sonar);

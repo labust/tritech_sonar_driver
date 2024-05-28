@@ -117,7 +117,8 @@ void Micron::decodeSonar(base::samples::Sonar &sonar) {
    sonar.pushBeam(sonar_data, bearing);
 }
 
-void Micron::configure(const MicronConfig &config, uint32_t timeout) {
+void Micron::configure(const MicronConfig &config, uint32_t timeout,
+                       bool stare_llm) {
    // some conversions
    int ad_interval =
        (((config.resolution / config.speed_of_sound) * 2.0) * 1e9) / 640.0;
@@ -183,9 +184,17 @@ void Micron::configure(const MicronConfig &config, uint32_t timeout) {
    head_config.range_scale = floor(config.max_distance * 10);
 
    // SCANRIGHT is always 1 for microns dst even if the flag is not set
-   head_config.head_control = (((!config.low_resolution) ? ADC8ON : 0) |
-                               (config.continous ? CONT : 0) | RAW | HASMOT |
-                               REPLYASL | CHAN2 | (config.invert ? INVERT : 0));
+   if (stare_llm) {
+      head_config.head_control =
+          (((!config.low_resolution) ? ADC8ON : 0) |
+           (config.continous ? CONT : 0) | RAW | HASMOT | REPLYASL | CHAN2 |
+           (config.invert ? INVERT : 0) | STARELLIM);
+   } else {
+      head_config.head_control =
+          (((!config.low_resolution) ? ADC8ON : 0) |
+           (config.continous ? CONT : 0) | RAW | HASMOT | REPLYASL | CHAN2 |
+           (config.invert ? INVERT : 0));
+   }
 
    writeHeadCommand(head_config, timeout);
 }
