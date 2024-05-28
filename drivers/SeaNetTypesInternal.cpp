@@ -160,7 +160,9 @@ std::vector<uint8_t> SeaNetPacket::createPaket(DeviceType device_type,
    packet[12] = (uint8_t)device_type;  // receiver type
 
    // user payload, packet payload without Byte 10,11,12
-   if (payload_size && payload) memcpy(&packet[13], payload, payload_size);
+   if (payload_size && payload) {
+      memcpy(&packet[13], payload, payload_size);
+   }
 
    packet[size - 1] = PACKET_END;
 

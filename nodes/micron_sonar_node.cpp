@@ -63,10 +63,10 @@ void SonarNode::declare_parameters() {
    this->declare_parameter<double>("speed_of_propagation", 1482.0);
    this->get_parameter("speed_of_propagation", speed_of_propagation_);
 
-   this->declare_parameter<double>("left_limit", M_PI);
+   this->declare_parameter<double>("left_limit", 180.0);
    this->get_parameter("left_limit", left_limit_);
 
-   this->declare_parameter<double>("right_limit", -M_PI);
+   this->declare_parameter<double>("right_limit", -180.0);
    this->get_parameter("right_limit", right_limit_);
 
    this->declare_parameter<double>("angular_resolution", 5.0);
@@ -88,10 +88,9 @@ void SonarNode::declare_parameters() {
    config_.min_distance = min_distance_;
    config_.gain = gain_;
    config_.speed_of_sound = speed_of_propagation_;
-   config_.left_limit = base::Angle::fromRad(left_limit_);
-   config_.right_limit = base::Angle::fromRad(right_limit_);
-   config_.angular_resolution =
-       base::Angle::fromRad(angular_resolution_ / 180.0 * M_PI);
+   config_.left_limit = base::Angle::fromDeg(left_limit_);
+   config_.right_limit = base::Angle::fromDeg(right_limit_);
+   config_.angular_resolution = base::Angle::fromDeg(angular_resolution_);
    config_.resolution = resolution_;
    config_.low_resolution = low_resolution_;
    config_.continous = continous_;
@@ -99,7 +98,6 @@ void SonarNode::declare_parameters() {
 }
 
 void SonarNode::timer_callback() {
-   micron_driver_->requestData();
    micron_driver_->receiveData(1000);
    micron_driver_->requestData();
    base::samples::Sonar sonar;
