@@ -5,6 +5,7 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <iostream>
 #include <sensor_msgs/msg/point_cloud.hpp>
+#include <std_msgs/msg/float64.hpp>
 #include "drivers_sonar_tritech/SeaNetMicron.hpp"
 #include "drivers_sonar_tritech/UdpDriver.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -40,6 +41,7 @@ class SonarNode : public rclcpp::Node {
        point_cloud_publisher_;
    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr
        pose_publisher_;
+   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr depth_publisher_;
    sea_net::MicronConfig config_;
 
    double left_limit_;
@@ -59,6 +61,9 @@ class SonarNode : public rclcpp::Node {
    bool stare_left_limit_;
 
    int timeout_receive_data_;  // ms
+
+   int intensity_threshold_;  // value indicating the threshold for a solid
+                              // object detected
 };
 
 #endif  // MICRON_SONAR_NODE_HPP

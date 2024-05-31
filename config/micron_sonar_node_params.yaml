@@ -11,8 +11,9 @@ micron_sonar_node:
     gain: 0.45
     speed_of_propagation: 1500.0 #1482.0 # in water
     angular_resolution: 5.0
-    stare_left_limit: false # keeps staring at the angle declared on left limit
+    stare_left_limit: true # keeps staring at the angle declared on left limit
     left_limit: 0.0
+    intensity_threshold: 140
     # right_limit: 0.0 # no difference when I set them...
     # speed_of_propagation: 343.0 # in air
     # angular_resolution: 1.0

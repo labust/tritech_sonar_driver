@@ -27,6 +27,11 @@ SonarNode::SonarNode() : Node("sonar_node") {
    pose_publisher_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
        "micron_sonar/heading", 10);
 
+   if (stare_left_limit_) {
+      depth_publisher_ = this->create_publisher<std_msgs::msg::Float64>(
+          "micron_sonar/depth", 10);
+   }
+
    timer_ =
        this->create_wall_timer(std::chrono::milliseconds(period_ms),
                                std::bind(&SonarNode::timer_callback, this));
@@ -87,6 +92,9 @@ void SonarNode::declare_parameters() {
    this->declare_parameter<bool>("stare_left_limit", false);
    this->get_parameter("stare_left_limit", stare_left_limit_);
 
+   this->declare_parameter<int>("intensity_threshold", 140);
+   this->get_parameter("intensity_threshold", intensity_threshold_);
+
    if (stare_left_limit_) {
       timeout_receive_data_ = 10000;  // probably it can be lowered
       left_limit_ = -left_limit_;
@@ -130,6 +138,11 @@ void SonarNode::publish_point_cloud() {
    channel.name = "intensity";
    // double rad_step = sonar_beam_.beamwidth_horizontal /
    // sonar_beam_.beam.size();
+   bool is_distance_found = false;
+   float distance_first_point = 0;
+   if (debug_) {
+      std::cout << "beam(size: " << sonar_beam_.beam.size() << "): ";
+   }
    for (size_t i = 0; i < sonar_beam_.beam.size(); ++i) {
       float range = r_step * (i + 1);
 
@@ -147,6 +160,31 @@ void SonarNode::publish_point_cloud() {
 
       point_cloud_msg.points.push_back(point);
       channel.values.push_back(static_cast<float>(sonar_beam_.beam[i]));
+
+      // Convert data to a readable format
+      int data_value = static_cast<int>(sonar_beam_.beam[i]);
+      if (debug_) {
+         std::cout << std::setw(3) << std::setfill('0') << data_value << ", ";
+      }
+      if (stare_left_limit_) {
+         if ((!is_distance_found) && (data_value >= intensity_threshold_)) {
+            distance_first_point = sqrt(x_unit * x_unit + y_unit * y_unit);
+            is_distance_found = true;
+         }
+      }
+   }
+
+   if (stare_left_limit_) {
+      std_msgs::msg::Float64 depth_msg;
+      depth_msg.data = distance_first_point;
+      depth_publisher_->publish(depth_msg);
+      if (debug_) {
+         std::cout << "distance from observed point: " << distance_first_point
+                   << std::endl;
+      }
+   }
+   if (debug_) {
+      std::cout << std::endl;
    }
    point_cloud_msg.channels.push_back(channel);
 
