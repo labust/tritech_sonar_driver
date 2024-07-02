@@ -1,6 +1,6 @@
 #include "ros_nodes/micron_sonar_node.hpp"
 #include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 SonarNode::SonarNode() : Node("sonar_node") {
 
@@ -28,8 +28,8 @@ SonarNode::SonarNode() : Node("sonar_node") {
        "micron_sonar/heading", 10);
 
    if (stare_left_limit_) {
-      depth_publisher_ = this->create_publisher<std_msgs::msg::Float64>(
-          "micron_sonar/depth", 10);
+      distance_publisher_ = this->create_publisher<std_msgs::msg::Float64>(
+          "micron_sonar/distance", 10);
    }
 
    timer_ =
@@ -92,8 +92,18 @@ void SonarNode::declare_parameters() {
    this->declare_parameter<bool>("stare_left_limit", false);
    this->get_parameter("stare_left_limit", stare_left_limit_);
 
-   this->declare_parameter<int>("intensity_threshold", 140);
+   this->declare_parameter<float>("intensity_threshold", 75.0);
    this->get_parameter("intensity_threshold", intensity_threshold_);
+
+   this->declare_parameter<float>("min_dist_considered", 0.55);
+   this->get_parameter("min_dist_considered", min_dist_considered_);
+
+   this->declare_parameter<float>("peak_proportion", 2.5);
+   this->get_parameter("peak_proportion", peak_proportion_);
+
+   this->declare_parameter<int>("noise_counter_threshold", 10);
+   this->get_parameter("noise_counter_threshold", noise_counter_threshold_);
+   
 
    if (stare_left_limit_) {
       timeout_receive_data_ = 10000;  // probably it can be lowered
@@ -112,6 +122,10 @@ void SonarNode::declare_parameters() {
    config_.low_resolution = low_resolution_;
    config_.continous = continous_;
    config_.invert = invert_;
+
+   last_distance_ = 0.0;
+   sonar_step_ = 0.1;
+   is_peak_detected_ = false;
 }
 
 void SonarNode::timer_callback() {
@@ -136,15 +150,18 @@ void SonarNode::publish_point_cloud() {
 
    sensor_msgs::msg::ChannelFloat32 channel;
    channel.name = "intensity";
-   // double rad_step = sonar_beam_.beamwidth_horizontal /
-   // sonar_beam_.beam.size();
    bool is_distance_found = false;
-   float distance_first_point = 0;
+   float distance_first_peak = 0;
+
    if (debug_) {
       std::cout << "beam(size: " << sonar_beam_.beam.size() << "): ";
    }
+
    for (size_t i = 0; i < sonar_beam_.beam.size(); ++i) {
       float range = r_step * (i + 1);
+      // if (range < 0.55 || range < config_.min_distance || range > config_.max_distance) {
+      //    continue;
+      // }
 
       if (range < config_.min_distance || range > config_.max_distance) {
          continue;
@@ -159,36 +176,82 @@ void SonarNode::publish_point_cloud() {
       point.z = 0.0;
 
       point_cloud_msg.points.push_back(point);
-      channel.values.push_back(static_cast<float>(sonar_beam_.beam[i]));
+      float sonar_beam_float = static_cast<float>(sonar_beam_.beam[i]);
+      channel.values.push_back(sonar_beam_float);
 
-      // Convert data to a readable format
       int data_value = static_cast<int>(sonar_beam_.beam[i]);
       if (debug_) {
          std::cout << std::setw(3) << std::setfill('0') << data_value << ", ";
       }
+
+      float distance_point = sqrt(x_unit * x_unit + y_unit * y_unit);
       if (stare_left_limit_) {
-         if ((!is_distance_found) && (data_value >= intensity_threshold_)) {
-            distance_first_point = sqrt(x_unit * x_unit + y_unit * y_unit);
+         if ((!is_distance_found) && 
+             (i > 0) && 
+             (distance_point > min_dist_considered_) &&
+             (sonar_beam_float >= intensity_threshold_) &&
+             (sonar_beam_float >= peak_proportion_ * sonar_beam_.beam[i - 1])) {
+            distance_first_peak = sqrt(x_unit * x_unit + y_unit * y_unit);
             is_distance_found = true;
          }
       }
    }
 
    if (stare_left_limit_) {
-      std_msgs::msg::Float64 depth_msg;
-      depth_msg.data = distance_first_point;
-      depth_publisher_->publish(depth_msg);
-      if (debug_) {
-         std::cout << "distance from observed point: " << distance_first_point
-                   << std::endl;
+      std_msgs::msg::Float64 dist_msg;
+      if(is_distance_found) {  
+         dist_msg.data = distance_first_peak;
+         noise_counter_=0;
+         if (debug_) {
+            std::cout << "distance from observed point: " << distance_first_peak << std::endl;
+         }
+      } else {
+         if(is_peak_detected_){
+            if(last_distance_ <= ((sonar_step_*1.5)+ min_dist_considered_)){
+               // too close
+               std::cout << "too close - last_distance_: " << last_distance_ << " - (setting dist_msg.data = -1)"<< std::endl;
+               dist_msg.data = -1;
+               noise_counter_=0;
+            } else if (last_distance_ >= (max_distance_ - (sonar_step_*1.5))) {
+               // too far
+              std::cout << "too far - last_distance_: " << last_distance_ << " - (setting dist_msg.data = -2)"<< std::endl;
+               dist_msg.data = -2;    
+               noise_counter_=0;     
+            } else {
+              if(noise_counter_ >= noise_counter_threshold_){
+               // probably noise, keeping last distance
+              std::cout << "WARNING - too many noisy measurements: " << noise_counter_ << ", do something! "<< std::endl;
+               // FIXME: implement logic for too many noisy measurements
+               distance_first_peak = last_distance_;
+               dist_msg.data = distance_first_peak; 
+              } else {
+               // probably noise, keeping last distance
+              std::cout << "probably noise, keeping last distance: " << last_distance_<< std::endl;
+               distance_first_peak = last_distance_;
+               dist_msg.data = distance_first_peak; 
+              }
+              
+               noise_counter_+=1;
+            }
+         } else {
+            // peak never detected
+            std::cout << "peak never detected - (setting dist_msg.data = -3)"<< std::endl;
+            dist_msg.data = -3;
+            noise_counter_=0;
+         }
+         
       }
+      distance_publisher_->publish(dist_msg);
    }
    if (debug_) {
       std::cout << std::endl;
    }
    point_cloud_msg.channels.push_back(channel);
-
    point_cloud_publisher_->publish(point_cloud_msg);
+   last_distance_ = distance_first_peak;
+   if (last_distance_ > 0){
+      is_peak_detected_ = true;
+   }
 }
 
 void SonarNode::publish_sonar_heading() {

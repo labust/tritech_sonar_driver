@@ -5,7 +5,7 @@ micron_sonar_node:
     udpPort: 4000
     udpServer: ""
     port: "/dev/ttyUSB0"
-    max_distance: 10.0
+    max_distance: 5.0
     min_distance: 0.0001
     frequency_out: 15.0
     gain: 0.45
@@ -13,7 +13,9 @@ micron_sonar_node:
     angular_resolution: 5.0
     stare_left_limit: true # keeps staring at the angle declared on left limit
     left_limit: 0.0
-    intensity_threshold: 140
+    intensity_threshold: 50.0
+    min_dist_considered: 0.45
+    peak_proportion: 1.5
     # right_limit: 0.0 # no difference when I set them...
     # speed_of_propagation: 343.0 # in air
     # angular_resolution: 1.0

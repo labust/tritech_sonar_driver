@@ -41,7 +41,7 @@ class SonarNode : public rclcpp::Node {
        point_cloud_publisher_;
    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr
        pose_publisher_;
-   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr depth_publisher_;
+   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr distance_publisher_;
    sea_net::MicronConfig config_;
 
    double left_limit_;
@@ -62,8 +62,21 @@ class SonarNode : public rclcpp::Node {
 
    int timeout_receive_data_;  // ms
 
-   int intensity_threshold_;  // value indicating the threshold for a solid
+   float intensity_threshold_;  // value indicating the threshold for a solid
                               // object detected
+   float min_dist_considered_; // min distance considered for threshold - m
+
+   float peak_proportion_; // proportion of first peak compared to previous number
+
+   float last_distance_; // last peak detected
+
+   float sonar_step_; // m
+
+   bool is_peak_detected_;
+
+   int noise_counter_; // to keep track of how many noisy detections
+
+   int noise_counter_threshold_; // how many consecutives noise measurements are allowed
 };
 
 #endif  // MICRON_SONAR_NODE_HPP

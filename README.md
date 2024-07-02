@@ -3,7 +3,8 @@
 This project is a ROS 2 wrapper built on top of [drivers_sonar_tritec](https://github.com/rock-drivers/drivers-sonar_tritech/tree/master)
 
 ## Use case
-1. run in the blue-os terminal: `socat -d -d /dev/ttyUSB0,raw,echo=0,b=115200 tcp4-listen:5555,fork,reuseaddr` (it can also be `socat -d -d /dev/ttyUSB0,raw,echo=0,b115200 tcp4-listen:5555,fork,reuseaddr`)
+1. run in the blue-os terminal, inside the docker: `socat -d -d /dev/ttyUSB0,raw,echo=0,b115200 tcp4-listen:5555,fork,reuseaddr`
+<!--(it can also be `socat -d -d /dev/ttyUSB0,raw,echo=0,b=115200 tcp4-listen:5555,fork,reuseaddr`)-->
 2. in local docker ROS 2 - T1:
 ```bash
 sudo socat -d -d PTY,raw,echo=0,link=/dev/ttyUSB0 tcp:192.168.2.2:5555,nodelay,forever
