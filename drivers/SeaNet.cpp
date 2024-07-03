@@ -3,6 +3,9 @@
 #include <iostream>
 #include "drivers_sonar_tritech/SeaNetTypesInternal.hpp"
 #include "drivers_sonar_tritech/Timeout.hpp"
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
 namespace sea_net {
 
@@ -78,6 +81,22 @@ bool SeaNet::isFullDuplex(int timeout) {
 }
 
 SeaNetPacket const& SeaNet::getSeaNetPacket() const { return sea_net_packet; }
+
+std::string SeaNet::formattedNow() const {
+    auto now = std::chrono::high_resolution_clock::now();
+    auto now_seconds = std::chrono::time_point_cast<std::chrono::seconds>(now);
+    auto epoch = now_seconds.time_since_epoch();
+    auto value = std::chrono::duration_cast<std::chrono::seconds>(epoch);
+    long duration = value.count();
+
+    auto nanoseconds = now.time_since_epoch() - std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch());
+    long nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(nanoseconds).count();
+
+    std::stringstream ss;
+    ss << duration << "." << std::setw(9) << std::setfill('0') << nanos;
+
+    return ss.str();
+}
 
 sea_net::PacketType SeaNet::readPacket(int timeout) {
    uint8_t* buffer = sea_net_packet.getPacketPtr();

@@ -30,6 +30,9 @@ class SeaNet : public ::iodrivers_base::Driver {
    /** Overloaded from iodrivers_base::Driver */
    void clear();
 
+   std::string formattedNow() const;
+
+
    /** Reboots the Device and waits for a mtAlive package
     *  be careful this takes a while and even if you receive mtAlives
     *  the device my be in a state where it does not accept mtHeadCommands */

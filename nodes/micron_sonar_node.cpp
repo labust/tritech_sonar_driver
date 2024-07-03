@@ -1,6 +1,7 @@
 #include "ros_nodes/micron_sonar_node.hpp"
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include "rclcpp/rclcpp.hpp"
 
 SonarNode::SonarNode() : Node("sonar_node") {
 
@@ -103,14 +104,10 @@ void SonarNode::declare_parameters() {
 
    this->declare_parameter<int>("noise_counter_threshold", 10);
    this->get_parameter("noise_counter_threshold", noise_counter_threshold_);
-   
 
-   if (stare_left_limit_) {
-      timeout_receive_data_ = 10000;  // probably it can be lowered
-      left_limit_ = -left_limit_;
-   } else {
-      timeout_receive_data_ = 1000;
-   }
+   this->declare_parameter<int>("timeout_receive_data", 790);
+   this->get_parameter("timeout_receive_data", timeout_receive_data_);
+   
    config_.max_distance = max_distance_;
    config_.min_distance = min_distance_;
    config_.gain = gain_;
@@ -124,18 +121,49 @@ void SonarNode::declare_parameters() {
    config_.invert = invert_;
 
    last_distance_ = 0.0;
-   sonar_step_ = 0.1;
    is_peak_detected_ = false;
 }
 
 void SonarNode::timer_callback() {
+   auto formatted_now = micron_driver_->formattedNow();
+   
+   if (debug_) {
+      RCLCPP_INFO(this->get_logger(), "Timer callback executed at: %s",formatted_now.c_str());
+   }
+
    micron_driver_->receiveData(timeout_receive_data_);
+   if (debug_) {
+      RCLCPP_INFO(this->get_logger(), "receiveData at: %s",formatted_now.c_str());
+   }
+
    micron_driver_->requestData();
+   if (debug_) {
+      RCLCPP_INFO(this->get_logger(), "requestData at: %s",formatted_now.c_str());
+   }
+
+
    base::samples::Sonar sonar;
+   if (debug_) {
+      RCLCPP_INFO(this->get_logger(), "sonar at: %s",formatted_now.c_str());
+   }
+   
    micron_driver_->decodeSonar(sonar);
+   if (debug_) {
+      RCLCPP_INFO(this->get_logger(), "decodeSonar at: %s",formatted_now.c_str());
+   }
+   
    sonar_beam_ = sonar.toSonarBeam();
+   if (debug_) {
+      RCLCPP_INFO(this->get_logger(), "toSonarBeam at: %s",formatted_now.c_str());
+   }
+   
    publish_point_cloud();
    publish_sonar_heading();
+   if (debug_) {
+      RCLCPP_INFO(this->get_logger(), "publishing at: %s",formatted_now.c_str());
+   }
+   
+   
    if (!udpServer_.empty()) {
       udp_driver_->sendSonarBeam(sonar_beam_);
    }
@@ -207,12 +235,12 @@ void SonarNode::publish_point_cloud() {
          }
       } else {
          if(is_peak_detected_){
-            if(last_distance_ <= ((sonar_step_*1.5)+ min_dist_considered_)){
+            if(last_distance_ <= ((resolution_*1.5)+ min_dist_considered_)){
                // too close
                std::cout << "too close - last_distance_: " << last_distance_ << " - (setting dist_msg.data = -1)"<< std::endl;
                dist_msg.data = -1;
                noise_counter_=0;
-            } else if (last_distance_ >= (max_distance_ - (sonar_step_*1.5))) {
+            } else if (last_distance_ >= (max_distance_ - (resolution_*1.5))) {
                // too far
               std::cout << "too far - last_distance_: " << last_distance_ << " - (setting dist_msg.data = -2)"<< std::endl;
                dist_msg.data = -2;    

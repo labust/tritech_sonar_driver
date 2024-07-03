@@ -6,19 +6,20 @@ micron_sonar_node:
     udpServer: ""
     port: "/dev/ttyUSB0"
     max_distance: 5.0
-    min_distance: 0.0001
+    min_distance: 0.1
     frequency_out: 15.0
     gain: 0.45
     speed_of_propagation: 1500.0 #1482.0 # in water
-    angular_resolution: 5.0
+    angular_resolution: 1.0
     stare_left_limit: true # keeps staring at the angle declared on left limit
     left_limit: 0.0
     intensity_threshold: 50.0
     min_dist_considered: 0.45
-    peak_proportion: 1.5
+    peak_proportion: 1.25
     # right_limit: 0.0 # no difference when I set them...
     # speed_of_propagation: 343.0 # in air
     # angular_resolution: 1.0
-    # low_resolution: true
+    low_resolution: false
+    timeout_receive_data: 1000
 
     # resolution: 0.1 # don't touch it

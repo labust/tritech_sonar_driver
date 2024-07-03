@@ -117,6 +117,12 @@ void Micron::decodeSonar(base::samples::Sonar &sonar) {
    sonar.pushBeam(sonar_data, bearing);
 }
 
+uint16_t convertRadiansToDeviceUnits(double radians) {
+    double gradians = radians * (200.0 / M_PI);
+    double device_units = gradians * 16.0;
+    return static_cast<uint16_t>(device_units);
+}
+
 void Micron::configure(const MicronConfig &config, uint32_t timeout,
                        bool stare_llm) {
    // some conversions
@@ -183,18 +189,19 @@ void Micron::configure(const MicronConfig &config, uint32_t timeout,
    // feet 2: fathoms 3: yards Only the metric system is implemented for now.
    head_config.range_scale = floor(config.max_distance * 10);
 
-   // SCANRIGHT is always 1 for microns dst even if the flag is not set
-   if (stare_llm) {
-      head_config.head_control =
-          (((!config.low_resolution) ? ADC8ON : 0) |
-           (config.continous ? CONT : 0) | RAW | HASMOT | REPLYASL | CHAN2 |
-           (config.invert ? INVERT : 0) | STARELLIM);
-   } else {
-      head_config.head_control =
-          (((!config.low_resolution) ? ADC8ON : 0) |
-           (config.continous ? CONT : 0) | RAW | HASMOT | REPLYASL | CHAN2 |
-           (config.invert ? INVERT : 0));
-   }
+   head_config.head_control =
+         (((!config.low_resolution) ? ADC8ON : 0) |
+         (config.continous ? CONT : 0) | RAW | HASMOT | REPLYASL | CHAN2 | SCANRIGHT |
+         (config.invert ? INVERT : 0) | (stare_llm ? STARELLIM : 0) );
+   // std::cout<<"HEAD_CONTROL: "<< head_config.head_control <<std::endl;
+   
+   // auto sum1 = (ADC8ON + CONT + SCANRIGHT + RAW + HASMOT + REPLYASL) + CHAN2 + STARELLIM;
+
+   auto sum2 = (ADC8ON + CONT + SCANRIGHT + RAW + HASMOT + REPLYASL)+ CHAN2;
+   // std::cout<<"SUM1: "<< sum1 <<std::endl;
+   // std::cout<<"SUM2: "<< sum2 <<std::endl;
+   // head_config.head_control = sum2;
+   // head_config.head_control = 8967;
 
    writeHeadCommand(head_config, timeout);
 }
