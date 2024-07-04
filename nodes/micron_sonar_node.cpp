@@ -10,6 +10,11 @@ SonarNode::SonarNode() : Node("sonar_node") {
    micron_driver_ = std::make_shared<sea_net::Micron>(debug_);
    udp_driver_ = std::make_shared<UDPDriver>(debug_);
 
+
+   if (should_turn_on_motor_ && stare_left_limit_){
+      turn_on_motor();
+   };
+
    if (!udpServer_.empty()) {
       if (!udp_driver_->init(std::string(udpServer_), udpPort_)) {
          RCLCPP_ERROR(this->get_logger(), "Could not open UDP server");
@@ -18,7 +23,9 @@ SonarNode::SonarNode() : Node("sonar_node") {
 
    micron_driver_->openSerial(port_, baudrate_);
    base::samples::RigidBodyState rbs;  // FIXME: why is it here?
-   micron_driver_->configure(config_, 1000, stare_left_limit_);
+   RCLCPP_INFO(this->get_logger(), "configuring with staring");
+   micron_driver_->configure(config_, 10000, stare_left_limit_);
+   RCLCPP_INFO(this->get_logger(), "requesting data");
    micron_driver_->requestData();
    int period_ms = static_cast<int>(1000.0 / frequency_out_);
 
@@ -33,12 +40,47 @@ SonarNode::SonarNode() : Node("sonar_node") {
           "micron_sonar/distance", 10);
    }
 
+
+   previous_time_sonar_timer_ = std::chrono::high_resolution_clock::now();
    timer_ =
        this->create_wall_timer(std::chrono::milliseconds(period_ms),
                                std::bind(&SonarNode::timer_callback, this));
 }
 
+void SonarNode::turn_on_motor(){
+   std::cout<<std::endl;
+   std::cout<<std::endl;
+   std::cout<<std::endl;
+   std::cout<<std::endl;
+    RCLCPP_INFO(this->get_logger(), "turning motor on");
+   try{
+         std::unique_ptr<sea_net::Micron> micron_driver_mock = std::make_unique<sea_net::Micron>(debug_);
+         std::unique_ptr<UDPDriver> udp_driver_mock = std::make_unique<UDPDriver>(debug_);
+
+         if (!udpServer_.empty()) {
+            if (!udp_driver_mock->init(std::string(udpServer_), udpPort_)) {
+               RCLCPP_ERROR(this->get_logger(), "Could not open MOCK UDP server");
+            }
+         }
+         micron_driver_mock->openSerial(port_, baudrate_);
+         base::samples::RigidBodyState rbs_mock;
+         micron_driver_mock->configure(config_, 10000, false);
+         micron_driver_mock->requestData();
+
+         auto start_time = std::chrono::steady_clock::now();
+         mock_timer_callback(micron_driver_mock, udp_driver_mock);
+         RCLCPP_INFO(this->get_logger(), "tried to config without staring");
+
+      } catch (const std::exception &e) {
+         RCLCPP_ERROR(this->get_logger(), "Exception during initial configuration: %s", e.what());
+      }
+}
+
 void SonarNode::declare_parameters() {
+
+   this->declare_parameter<bool>("should_turn_on_motor", true);
+   this->get_parameter("should_turn_on_motor", should_turn_on_motor_);
+
    this->declare_parameter<bool>("debug", false);
    this->get_parameter("debug", debug_);
 
@@ -120,15 +162,83 @@ void SonarNode::declare_parameters() {
    config_.continous = continous_;
    config_.invert = invert_;
 
+   timer_counter_ = 0;
+   timer_threshold_ = 10;
+
    last_distance_ = 0.0;
    is_peak_detected_ = false;
 }
 
+void SonarNode::mock_timer_callback(std::unique_ptr<sea_net::Micron>& micron_driver, std::unique_ptr<UDPDriver>& udp_driver){
+    auto formatted_now = micron_driver->formattedNow();
+   try{
+      if (debug_) {
+         RCLCPP_INFO(this->get_logger(), "MOCK Timer callback executed at: %s",formatted_now.c_str());
+      }
+
+      micron_driver->receiveData(timeout_receive_data_);
+      if (debug_) {
+         RCLCPP_INFO(this->get_logger(), "MOCK receiveData at: %s",formatted_now.c_str());
+      }
+
+      micron_driver->requestData();
+      if (debug_) {
+         RCLCPP_INFO(this->get_logger(), "MOCK requestData at: %s",formatted_now.c_str());
+      }
+
+
+      base::samples::Sonar sonar;
+      if (debug_) {
+         RCLCPP_INFO(this->get_logger(), "MOCK sonar at: %s",formatted_now.c_str());
+      }
+      
+      micron_driver->decodeSonar(sonar);
+      if (debug_) {
+         RCLCPP_INFO(this->get_logger(), "MOCK decodeSonar at: %s",formatted_now.c_str());
+      }
+      
+      sonar_beam_ = sonar.toSonarBeam();
+      if (debug_) {
+         RCLCPP_INFO(this->get_logger(), "MOCK toSonarBeam at: %s",formatted_now.c_str());
+      }
+
+      if (!udpServer_.empty()) {
+         udp_driver->sendSonarBeam(sonar_beam_);
+      }
+      RCLCPP_INFO(this->get_logger(), "MOCK: %s",formatted_now.c_str());
+   } catch (const std::exception &e) {
+         RCLCPP_ERROR(this->get_logger(), "Exception during mock_cb: %s", e.what());
+      }
+   
+}
+
 void SonarNode::timer_callback() {
    auto formatted_now = micron_driver_->formattedNow();
-   
+   auto current_time = std::chrono::high_resolution_clock::now();
+
+
    if (debug_) {
       RCLCPP_INFO(this->get_logger(), "Timer callback executed at: %s",formatted_now.c_str());
+   }
+   if (previous_time_sonar_timer_ != std::chrono::high_resolution_clock::time_point()) {
+      auto time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - previous_time_sonar_timer_).count();
+      
+      if (time_diff >= 0.2) {
+
+         auto current_time_duration = std::chrono::duration_cast<std::chrono::milliseconds>(current_time.time_since_epoch()).count();
+         auto previous_time_duration = std::chrono::duration_cast<std::chrono::milliseconds>(previous_time_sonar_timer_.time_since_epoch()).count();
+         RCLCPP_INFO(this->get_logger(), "WITHIN - Current time (ms since epoch): %ld, Previous time (ms since epoch): %ld",
+                current_time_duration, previous_time_duration);
+              RCLCPP_INFO(this->get_logger(), "Time difference: %.6f seconds", time_diff);
+              if(timer_counter_<timer_threshold_){
+               timer_counter_+=1;
+              } else {
+               turn_on_motor();
+               timer_counter_ = 0;
+              }
+      } else {
+         timer_counter_ = 0;
+      }
    }
 
    micron_driver_->receiveData(timeout_receive_data_);
@@ -167,6 +277,8 @@ void SonarNode::timer_callback() {
    if (!udpServer_.empty()) {
       udp_driver_->sendSonarBeam(sonar_beam_);
    }
+
+   previous_time_sonar_timer_ = current_time;
 }
 
 void SonarNode::publish_point_cloud() {

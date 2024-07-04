@@ -16,6 +16,8 @@ class SonarNode : public rclcpp::Node {
 
   private:
    void timer_callback();
+   void mock_timer_callback(std::unique_ptr<sea_net::Micron>& micron_driver, std::unique_ptr<UDPDriver>& udp_driver);
+   void turn_on_motor();
    void publish_point_cloud();
    void publish_sonar_heading();
    void declare_parameters();
@@ -74,9 +76,17 @@ class SonarNode : public rclcpp::Node {
 
    bool is_peak_detected_;
 
+   bool should_turn_on_motor_; // turn on motor even if you are in stare_mode
+
    int noise_counter_; // to keep track of how many noisy detections
 
    int noise_counter_threshold_; // how many consecutives noise measurements are allowed
+
+   int timer_counter_;
+   
+   int timer_threshold_;
+
+   std::chrono::high_resolution_clock::time_point previous_time_sonar_timer_;
 };
 
 #endif  // MICRON_SONAR_NODE_HPP
