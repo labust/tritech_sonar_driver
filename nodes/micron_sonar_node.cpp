@@ -23,10 +23,7 @@ SonarNode::SonarNode() : Node("sonar_node") {
 
    micron_driver_->openSerial(port_, baudrate_);
    base::samples::RigidBodyState rbs;  // FIXME: why is it here?
-   RCLCPP_INFO(this->get_logger(), "configuring with staring");
-   micron_driver_->configure(config_, 10000, stare_left_limit_);
-   RCLCPP_INFO(this->get_logger(), "requesting data");
-   micron_driver_->requestData();
+   configurin_w_staring();
    int period_ms = static_cast<int>(1000.0 / frequency_out_);
 
    point_cloud_publisher_ =
@@ -45,6 +42,13 @@ SonarNode::SonarNode() : Node("sonar_node") {
    timer_ =
        this->create_wall_timer(std::chrono::milliseconds(period_ms),
                                std::bind(&SonarNode::timer_callback, this));
+}
+
+void SonarNode::configurin_w_staring(){
+   RCLCPP_INFO(this->get_logger(), "configuring with staring");
+   micron_driver_->configure(config_, 10000, stare_left_limit_);
+   RCLCPP_INFO(this->get_logger(), "requesting data");
+   micron_driver_->requestData();
 }
 
 void SonarNode::turn_on_motor(){
@@ -66,8 +70,6 @@ void SonarNode::turn_on_motor(){
          base::samples::RigidBodyState rbs_mock;
          micron_driver_mock->configure(config_, 10000, false);
          micron_driver_mock->requestData();
-
-         auto start_time = std::chrono::steady_clock::now();
          mock_timer_callback(micron_driver_mock, udp_driver_mock);
          RCLCPP_INFO(this->get_logger(), "tried to config without staring");
 
@@ -163,7 +165,7 @@ void SonarNode::declare_parameters() {
    config_.invert = invert_;
 
    timer_counter_ = 0;
-   timer_threshold_ = 10;
+   timer_threshold_ = 5;
 
    last_distance_ = 0.0;
    is_peak_detected_ = false;
@@ -220,27 +222,29 @@ void SonarNode::timer_callback() {
    if (debug_) {
       RCLCPP_INFO(this->get_logger(), "Timer callback executed at: %s",formatted_now.c_str());
    }
-   if (previous_time_sonar_timer_ != std::chrono::high_resolution_clock::time_point()) {
-      auto time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - previous_time_sonar_timer_).count();
-      
-      if (time_diff >= 0.2) {
-
-         auto current_time_duration = std::chrono::duration_cast<std::chrono::milliseconds>(current_time.time_since_epoch()).count();
-         auto previous_time_duration = std::chrono::duration_cast<std::chrono::milliseconds>(previous_time_sonar_timer_.time_since_epoch()).count();
-         RCLCPP_INFO(this->get_logger(), "WITHIN - Current time (ms since epoch): %ld, Previous time (ms since epoch): %ld",
-                current_time_duration, previous_time_duration);
-              RCLCPP_INFO(this->get_logger(), "Time difference: %.6f seconds", time_diff);
-              if(timer_counter_<timer_threshold_){
-               timer_counter_+=1;
-              } else {
-               turn_on_motor();
-               timer_counter_ = 0;
-              }
-      } else {
-         timer_counter_ = 0;
+   if(should_turn_on_motor_){
+      if (previous_time_sonar_timer_ != std::chrono::high_resolution_clock::time_point()) {
+         auto time_diff = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - previous_time_sonar_timer_).count();
+         
+         if (time_diff >= 0.2) {
+            auto current_time_duration = std::chrono::duration_cast<std::chrono::milliseconds>(current_time.time_since_epoch()).count();
+            auto previous_time_duration = std::chrono::duration_cast<std::chrono::milliseconds>(previous_time_sonar_timer_.time_since_epoch()).count();
+            RCLCPP_INFO(this->get_logger(), "WITHIN - Current time (ms since epoch): %ld, Previous time (ms since epoch): %ld",
+                  current_time_duration, previous_time_duration);
+               RCLCPP_INFO(this->get_logger(), "Time difference: %.6f seconds", time_diff);
+               if(timer_counter_<timer_threshold_){
+                  timer_counter_+=1;
+               } else {
+                  turn_on_motor();
+                  // configurin_w_staring();
+                  timer_counter_ = 0;
+               }
+         } else {
+            timer_counter_ = 0;
+         }
       }
    }
-
+   
    micron_driver_->receiveData(timeout_receive_data_);
    if (debug_) {
       RCLCPP_INFO(this->get_logger(), "receiveData at: %s",formatted_now.c_str());
@@ -326,17 +330,22 @@ void SonarNode::publish_point_cloud() {
 
       float distance_point = sqrt(x_unit * x_unit + y_unit * y_unit);
       if (stare_left_limit_) {
-         if ((!is_distance_found) && 
-             (i > 0) && 
-             (distance_point > min_dist_considered_) &&
-             (sonar_beam_float >= intensity_threshold_) &&
-             (sonar_beam_float >= peak_proportion_ * sonar_beam_.beam[i - 1])) {
+         if ((!is_distance_found)  
+             && (i > 0)
+             && (distance_point > min_dist_considered_)
+             && (sonar_beam_float >= peak_proportion_ * sonar_beam_.beam[i - 1])
+             && ((sonar_beam_float >= intensity_threshold_)
+             || (sonar_beam_.beam[i + 1] >= intensity_threshold_*0.7) )
+            //  && (sonar_beam_.beam[i + 2] > 0.0)
+            //  && (sonar_beam_.beam[i + 3] >= intensity_threshold_*0.5)
+             ) {
             distance_first_peak = sqrt(x_unit * x_unit + y_unit * y_unit);
             is_distance_found = true;
          }
       }
    }
 
+   // Publish distance if stare_left_limit
    if (stare_left_limit_) {
       std_msgs::msg::Float64 dist_msg;
       if(is_distance_found) {  
@@ -349,24 +358,24 @@ void SonarNode::publish_point_cloud() {
          if(is_peak_detected_){
             if(last_distance_ <= ((resolution_*1.5)+ min_dist_considered_)){
                // too close
-               std::cout << "too close - last_distance_: " << last_distance_ << " - (setting dist_msg.data = -1)"<< std::endl;
+               std::cout << "too close("<<distance_first_peak  <<") - last_distance_: " << last_distance_ << " - (setting dist_msg.data = -1)"<< std::endl;
                dist_msg.data = -1;
                noise_counter_=0;
             } else if (last_distance_ >= (max_distance_ - (resolution_*1.5))) {
                // too far
-              std::cout << "too far - last_distance_: " << last_distance_ << " - (setting dist_msg.data = -2)"<< std::endl;
+              std::cout << "too far("<<distance_first_peak  <<") - last_distance_: " << last_distance_ << " - (setting dist_msg.data = -2)"<< std::endl;
                dist_msg.data = -2;    
                noise_counter_=0;     
             } else {
               if(noise_counter_ >= noise_counter_threshold_){
                // probably noise, keeping last distance
-              std::cout << "WARNING - too many noisy measurements: " << noise_counter_ << ", do something! "<< std::endl;
+              std::cout << "WARNING - too many noisy measurements("<<distance_first_peak  <<"): " << noise_counter_ << ", do something! "<< std::endl;
                // FIXME: implement logic for too many noisy measurements
                distance_first_peak = last_distance_;
                dist_msg.data = distance_first_peak; 
               } else {
                // probably noise, keeping last distance
-              std::cout << "probably noise, keeping last distance: " << last_distance_<< std::endl;
+              std::cout << "probably noise ("<< distance_first_peak <<"), keeping last distance: " << last_distance_<< std::endl;
                distance_first_peak = last_distance_;
                dist_msg.data = distance_first_peak; 
               }

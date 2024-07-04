@@ -13,7 +13,7 @@ micron_sonar_node:
     angular_resolution: 1.0
     stare_left_limit: true # keeps staring at the angle declared on left limit
     left_limit: 0.0
-    intensity_threshold: 50.0
+    intensity_threshold: 5.0
     min_dist_considered: 0.45
     peak_proportion: 1.25
     # right_limit: 0.0 # no difference when I set them...
@@ -21,6 +21,6 @@ micron_sonar_node:
     # angular_resolution: 1.0
     low_resolution: false
     timeout_receive_data: 1000
-    should_turn_on_motor: true
+    should_turn_on_motor: false
 
     # resolution: 0.1 # don't touch it

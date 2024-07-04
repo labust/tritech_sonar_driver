@@ -18,6 +18,7 @@ class SonarNode : public rclcpp::Node {
    void timer_callback();
    void mock_timer_callback(std::unique_ptr<sea_net::Micron>& micron_driver, std::unique_ptr<UDPDriver>& udp_driver);
    void turn_on_motor();
+   void configurin_w_staring();
    void publish_point_cloud();
    void publish_sonar_heading();
    void declare_parameters();
