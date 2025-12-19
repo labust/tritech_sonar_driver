@@ -68,7 +68,8 @@ void SonarNode::turn_on_motor(){
          }
          micron_driver_mock->openSerial(port_, baudrate_);
          base::samples::RigidBodyState rbs_mock;
-         micron_driver_mock->configure(config_, 10000, false);
+         // Use sector limits even during motor startup
+         micron_driver_mock->configure(config_, 10000, stare_left_limit_);
          micron_driver_mock->requestData();
          mock_timer_callback(micron_driver_mock, udp_driver_mock);
          RCLCPP_INFO(this->get_logger(), "tried to config without staring");
@@ -269,6 +270,27 @@ void SonarNode::timer_callback() {
    sonar_beam_ = sonar.toSonarBeam();
    if (debug_) {
       RCLCPP_INFO(this->get_logger(), "toSonarBeam at: %s",formatted_now.c_str());
+   }
+   
+   double bearing_rad = sonar_beam_.bearing.rad;
+   double left_limit_rad = config_.left_limit.rad;
+   double right_limit_rad = config_.right_limit.rad;
+   
+   // Normalize bearing to [-PI, PI] range
+   while (bearing_rad > M_PI) bearing_rad -= 2.0 * M_PI;
+   while (bearing_rad < -M_PI) bearing_rad += 2.0 * M_PI;
+   
+   // Check if bearing is within sector
+   bool in_sector = false;
+   if (left_limit_rad >= right_limit_rad) {
+      in_sector = (bearing_rad <= left_limit_rad && bearing_rad >= right_limit_rad);
+   } else {
+      in_sector = (bearing_rad <= left_limit_rad || bearing_rad >= right_limit_rad);
+   }
+   
+   if (!in_sector && !stare_left_limit_) {
+      previous_time_sonar_timer_ = current_time;
+      return;
    }
    
    publish_point_cloud();

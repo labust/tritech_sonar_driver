@@ -49,6 +49,12 @@ void Micron::decodeSonar(base::samples::Sonar &sonar) {
    // be careful some values cannot be configured for the micron dst like
    // SCANRIGHT (always == 1) some other values are dynamically by the device
    // like MOTOFF
+   
+   std::cout << "Hardware reported config:" << std::endl;
+   std::cout << "  left_limit: " << data.left_limit << " (expected: " << head_config.left_limit << ")" << std::endl;
+   std::cout << "  right_limit: " << data.right_limit << " (expected: " << head_config.right_limit << ")" << std::endl;
+   std::cout << "  head_control: " << data.head_control << " (expected: " << head_config.head_control << ")" << std::endl;
+   
    if (head_config.left_limit != data.left_limit ||
        head_config.right_limit != data.right_limit ||
        head_config.motor_step_angle_size != data.motor_step_angle_size ||
@@ -144,8 +150,11 @@ void Micron::configure(const MicronConfig &config, uint32_t timeout,
              << " number_of_bins:" << number_of_bins
              << " left_limit:" << left_limit << " right_limit:" << right_limit
              << " motor_step_angle_size:" << (int)motor_step_angle_size
-             << " initial_gain:" << " lockout_time:" << lockout_time
+             << " initial_gain:" << initial_gain << " lockout_time:" << lockout_time
              << std::endl;
+   std::cout << "left_limit_rad:" << config.left_limit.rad 
+             << " right_limit_rad:" << config.right_limit.rad
+             << " stare_llm:" << stare_llm << std::endl;
 
    // check configuration
    if (config.gain < 0.0 || config.gain > 1.0)
@@ -189,10 +198,20 @@ void Micron::configure(const MicronConfig &config, uint32_t timeout,
    // feet 2: fathoms 3: yards Only the metric system is implemented for now.
    head_config.range_scale = floor(config.max_distance * 10);
 
+   // Check if we're doing a sector scan or full 360
+   bool is_full_360 = (config.left_limit.rad >= (M_PI - 0.01) && 
+                       config.right_limit.rad <= (-M_PI + 0.01));
+   
+   std::cout << "Scan mode: " << (is_full_360 ? "FULL 360 (SCANRIGHT)" : "SECTOR (no SCANRIGHT)") << std::endl;
+   std::cout << "Continuous mode: " << (config.continous ? "YES (CONT flag)" : "NO (ping-pong)") << std::endl;
+   
    head_config.head_control =
          (((!config.low_resolution) ? ADC8ON : 0) |
-         (config.continous ? CONT : 0) | RAW | HASMOT | REPLYASL | CHAN2 | SCANRIGHT |
+         (config.continous ? CONT : 0) | RAW | HASMOT | REPLYASL | CHAN2 |
+         (is_full_360 ? SCANRIGHT : 0) |  // Don't set SCANRIGHT for sector scan
          (config.invert ? INVERT : 0) | (stare_llm ? STARELLIM : 0) );
+   
+   std::cout << "head_control flags: " << head_config.head_control << std::endl;
    // std::cout<<"HEAD_CONTROL: "<< head_config.head_control <<std::endl;
    
    // auto sum1 = (ADC8ON + CONT + SCANRIGHT + RAW + HASMOT + REPLYASL) + CHAN2 + STARELLIM;
