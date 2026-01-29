@@ -10,7 +10,7 @@
 namespace sea_net {
 
 SeaNet::SeaNet(DeviceType type, bool debug)
-    : iodrivers_base::Driver(SEA_NET_MAX_PACKET_SIZE, false),
+    : iodrivers_base::Driver(SEA_NET_MAX_PACKET_SIZE, true),
       device_type(type),
       has_pending_data(false),
       debug_(debug) {}

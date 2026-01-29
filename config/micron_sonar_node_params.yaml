@@ -9,18 +9,18 @@ micron_sonar_node:
     udpPort: 4000
     udpServer: ""
     
-    max_distance: 2.0     
-    min_distance: 0.1  
-    resolution: 0.1        
+    max_distance: 5.0     
+    min_distance: 0.5
+    resolution: 0.05        
     
     stare_left_limit: false
-    left_limit: 10.0      
-    right_limit: -10.0    
+    left_limit: 92.0
+    right_limit: 88.0
     
     angular_resolution: 1.0 
     
-    gain: 0.2              
-    speed_of_propagation: 1500.0  
+    gain: 0.01              
+    speed_of_propagation: 1500.0    
     
     low_resolution: true  
     
@@ -28,8 +28,8 @@ micron_sonar_node:
     invert: false          
     
     frequency_out: 15.0     
-    intensity_threshold: 5.0
-    min_dist_considered: 0.45
+    intensity_threshold: 5.0 
+    min_dist_considered: 0.5
     peak_proportion: 1.25
     timeout_receive_data: 3000
     
