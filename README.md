@@ -1,4 +1,4 @@
-# Drivers_sonar_tritech (ROS2)
+# Tritech Sonar Driver (ROS2)
 
 This project is a **ROS 2 wrapper for the Tritech Micron sonar**, built on top of [drivers-sonar-tritech](https://github.com/rock-drivers/drivers-sonar_tritech/tree/master).
 
